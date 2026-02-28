@@ -1,22 +1,25 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Syne, Fragment_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const syne = Syne({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-display",
+  weight: ["400", "700", "800"],
   display: "swap"
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const fragmentMono = Fragment_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
+  weight: "400",
+  style: ["normal", "italic"],
   display: "swap"
 });
 
 export const metadata: Metadata = {
-  title: "Palette",
-  description: "Generative color palette explorer"
+  title: "Palette Engine",
+  description: "Generative color palette engine. Seeded, lockable, themeable."
 };
 
 export default function RootLayout({
@@ -25,11 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
-        {children}
-      </body>
+    <html lang="en" className={`${syne.variable} ${fragmentMono.variable}`}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
-

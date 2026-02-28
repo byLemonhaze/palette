@@ -3,35 +3,89 @@
 @tailwind utilities;
 
 :root {
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'Fragment Mono', monospace;
+
+  /* Active palette vars (updated via JS) */
+  --p1: #000;
+  --p2: #000;
+  --p3: #000;
+  --p4: #000;
+  --p5: #000;
+
   color-scheme: dark;
 }
 
 body {
+  background: #0E0E0F;
+  color: #EDEDED;
+  font-family: var(--font-display), sans-serif;
   min-height: 100vh;
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  color: rgb(226 232 240);
-  background:
-    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.08), transparent 42%),
-    radial-gradient(circle at 94% 2%, rgba(255, 255, 255, 0.05), transparent 36%),
-    linear-gradient(160deg, rgba(33, 34, 36, 1) 0%, rgba(18, 19, 21, 1) 54%, rgba(12, 12, 13, 1) 100%);
 }
 
-.font-hex {
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+/* Typography utilities */
+.font-display {
+  font-family: var(--font-display), sans-serif;
 }
 
-.drawer-shadow {
-  box-shadow:
-    -16px 0 34px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(255, 255, 255, 0.08);
+.font-mono {
+  font-family: var(--font-mono), 'Courier New', monospace;
 }
 
-.glass-panel {
-  background: linear-gradient(
-    148deg,
-    rgba(69, 69, 72, 0.22) 0%,
-    rgba(45, 45, 47, 0.2) 36%,
-    rgba(28, 28, 30, 0.18) 100%
-  );
-  backdrop-filter: blur(13px);
+/* Design system components */
+@layer components {
+  /* Section containers */
+  .section-panel {
+    @apply border border-[#1C1C1E] bg-[#0E0E0F] p-3 sm:p-4;
+  }
+
+  .section-header {
+    @apply flex flex-wrap items-center justify-between gap-2 mb-3;
+  }
+
+  .section-label {
+    @apply font-display text-xs uppercase tracking-[0.22em] text-[#888];
+  }
+
+  .section-sublabel {
+    @apply font-mono text-[11px] tracking-[0.1em] text-[#444];
+  }
+
+  /* Swatch cards */
+  .swatch-card {
+    @apply p-2;
+  }
+
+  .swatch-fill {
+    @apply h-24 overflow-hidden;
+    transition: background-color 300ms ease;
+  }
+
+  /* Inputs */
+  .input-field {
+    @apply w-full border border-[#1C1C1E] bg-[#0A0A0B] px-3 py-2 text-[#CCC] outline-none
+           transition placeholder:text-[#333] focus:border-[#333];
+    font-family: var(--font-mono), monospace;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply border border-[#EEE] bg-[#EDEDED] px-4 py-2.5 font-display text-sm font-bold
+           uppercase tracking-[0.08em] text-[#0E0E0F] transition hover:bg-white;
+  }
+
+  .btn-ghost {
+    @apply border border-[#2A2A2A] font-display text-[#AAA] transition
+           hover:border-[#444] hover:text-[#EEE];
+  }
+}
+
+/* Drawer */
+.favorites-drawer {
+  box-shadow: -16px 0 34px rgba(0, 0, 0, 0.5);
+}
+
+/* Swatch CSS transition for palette change */
+[style*="background-color"] {
+  transition: background-color 300ms ease;
 }

@@ -801,7 +801,7 @@ const applyVignette = (ctx: CanvasRenderingContext2D, width: number, height: num
   ctx.fillRect(0, 0, width, height);
 };
 
-export const renderBamInspiredPreview = (
+export const renderSketchPreview = (
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
