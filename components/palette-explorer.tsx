@@ -3,26 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { generatePalette, makeRandomSeed, PALETTE_THEME_OPTIONS } from "@/lib/palette";
 import type { PaletteColor, PaletteTheme } from "@/lib/palette";
-import { renderSketchPreview } from "@/lib/sketch-preview";
 import {
   SWATCH_COUNT,
   SSR_SEED,
   AUTO_THEME_ID,
   EMPTY_LOCKS,
   makeUnlockedColors,
-  VARIANT_COUNT,
-  AA_TEXT_TARGET
+  VARIANT_COUNT
 } from "@/lib/constants";
-import { getContrastRatio, getHueSpread } from "@/lib/contrast";
 import { deriveIterationSeed, buildMasterSeed, parseMasterSeed } from "@/lib/seed";
 import { toneName } from "@/lib/color-names";
-import {
-  describeHueVariety,
-  describeSaturationEnergy,
-  describeLightnessDepth,
-  describeReadability,
-  describeAccessibility
-} from "@/lib/analytics";
 import {
   isValidFavorites,
   normalizeHex,
@@ -36,11 +26,9 @@ import { PaletteSwatch } from "@/components/palette-swatch";
 import { VariantLab } from "@/components/variant-lab";
 import { MasterSeedPanel } from "@/components/master-seed-panel";
 import { CustomThemeEditor } from "@/components/custom-theme-editor";
-import { StudioPreview } from "@/components/studio-preview";
-import { AnalyticsPanel } from "@/components/analytics-panel";
 import { FavoritesDrawer } from "@/components/favorites-drawer";
 import { motion } from "framer-motion";
-import type { ShowcaseScene, ArtAspect, VariantSnapshot } from "@/types/palette";
+import type { VariantSnapshot } from "@/types/palette";
 
 const FAVORITES_KEY = "palette-favorites-v1";
 const CUSTOM_THEMES_KEY = "palette-custom-themes-v1";
@@ -78,11 +66,6 @@ export default function PaletteExplorer() {
     themeName: initialGeneration.themeName
   }));
 
-  // Studio showcase
-  const [showcaseScene, setShowcaseScene] = useState<ShowcaseScene>("frontend");
-  const [artAspect, setArtAspect] = useState<ArtAspect>("portrait");
-  const [artIteration, setArtIteration] = useState(0);
-
   // Favorites & drawer
   const [favorites, setFavorites] = useState<PaletteColor[][]>([]);
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
@@ -96,7 +79,6 @@ export default function PaletteExplorer() {
   const generatingTimeoutRef = useRef<number | null>(null);
   const seedMessageTimeoutRef = useRef<number | null>(null);
   const customThemeMessageTimeoutRef = useRef<number | null>(null);
-  const miniArtworkCanvasRefs = useRef<Array<HTMLCanvasElement | null>>([]);
 
   // Derived
   const allThemeOptions = useMemo(
@@ -117,16 +99,6 @@ export default function PaletteExplorer() {
     () => palette.map((color, index) => toneName(color.hsl, index, seed)),
     [palette, seed]
   );
-  const contrastMatrix = useMemo(
-    () => palette.map((rowColor) => palette.map((colColor) => getContrastRatio(rowColor.hex, colColor.hex))),
-    [palette]
-  );
-  const studioPreview = useMemo(() => {
-    const p = (i: number) => palette[i] ?? palette[0]!;
-    return { dark: p(0), surface: p(1), base: p(2), light: p(3), accent: p(4) ?? p(2), accentAlt: p(2) };
-  }, [palette]);
-  const miniArtworkAspectRatio =
-    artAspect === "square" ? "1 / 1" : artAspect === "portrait" ? "5 / 7" : "7 / 5";
   const currentMasterSeed = useMemo(
     () => buildMasterSeed({ v: 1, seed, themeId, selectedThemeId, locks, palette }),
     [locks, palette, seed, selectedThemeId, themeId]
@@ -146,54 +118,6 @@ export default function PaletteExplorer() {
       return { seed: variantSeed, themeId: variantSnapshot.themeId, themeName: variantSnapshot.themeName, colors: generated.colors };
     });
   }, [variantBaseTheme, variantSnapshot]);
-
-  const analyticsSummary = useMemo(() => {
-    const hues = palette.map((e) => e.hsl.h);
-    const saturations = palette.map((e) => e.hsl.s);
-    const lightnessValues = palette.map((e) => e.hsl.l);
-    let minContrast = Infinity, maxContrast = -Infinity, contrastTotal = 0, contrastCount = 0, aaPassingPairs = 0;
-    let minPair: [number, number] = [0, 0], maxPair: [number, number] = [0, 0];
-    for (let row = 0; row < contrastMatrix.length; row++) {
-      for (let col = row + 1; col < contrastMatrix.length; col++) {
-        const ratio = contrastMatrix[row]?.[col] ?? 1;
-        contrastTotal += ratio; contrastCount += 1;
-        if (ratio < minContrast) { minContrast = ratio; minPair = [row, col]; }
-        if (ratio > maxContrast) { maxContrast = ratio; maxPair = [row, col]; }
-        if (ratio >= AA_TEXT_TARGET) aaPassingPairs += 1;
-      }
-    }
-    const averageContrast = contrastCount > 0 ? contrastTotal / contrastCount : 1;
-    return {
-      hueSpread: getHueSpread(hues),
-      saturationRange: Math.max(...saturations) - Math.min(...saturations),
-      lightnessRange: Math.max(...lightnessValues) - Math.min(...lightnessValues),
-      averageContrast,
-      minContrast: isFinite(minContrast) ? minContrast : 1,
-      maxContrast: isFinite(maxContrast) ? maxContrast : 1,
-      minPair, maxPair,
-      aaPassRate: contrastCount > 0 ? (aaPassingPairs / contrastCount) * 100 : 0,
-      aaPassingPairs, totalPairs: contrastCount
-    };
-  }, [contrastMatrix, palette]);
-
-  const analyticsNarrative = useMemo(() => {
-    const variety = describeHueVariety(analyticsSummary.hueSpread);
-    const energy = describeSaturationEnergy(analyticsSummary.saturationRange);
-    const depth = describeLightnessDepth(analyticsSummary.lightnessRange);
-    const readability = describeReadability(analyticsSummary.averageContrast);
-    const accessibility = describeAccessibility(analyticsSummary.aaPassRate);
-    const tip = accessibility.tone === "strong"
-      ? "Most pairings are text-safe. Use this palette flexibly."
-      : accessibility.tone === "balanced"
-        ? "Use the highest-contrast pair for body text."
-        : "Reserve low-contrast pairs for decoration only.";
-    return {
-      variety, energy, depth, readability, accessibility,
-      strongestPair: { a: analyticsSummary.maxPair[0], b: analyticsSummary.maxPair[1], ratio: analyticsSummary.maxContrast },
-      weakestPair: { a: analyticsSummary.minPair[0], b: analyticsSummary.minPair[1], ratio: analyticsSummary.minContrast },
-      tip
-    };
-  }, [analyticsSummary]);
 
   // Helpers
   const buildLockedColors = (srcPalette: PaletteColor[], srcLocks: boolean[]) =>
@@ -255,36 +179,6 @@ export default function PaletteExplorer() {
     if (seedMessageTimeoutRef.current !== null) window.clearTimeout(seedMessageTimeoutRef.current);
     if (customThemeMessageTimeoutRef.current !== null) window.clearTimeout(customThemeMessageTimeoutRef.current);
   }, []);
-
-  // Canvas effect
-  useEffect(() => {
-    if (showcaseScene !== "art") return;
-    let rafId: number | null = null;
-    const draw = () => {
-      miniArtworkCanvasRefs.current.forEach((canvas, index) => {
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        const w = Math.max(120, Math.floor(canvas.clientWidth));
-        const h = Math.max(120, Math.floor(canvas.clientHeight));
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr);
-        canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const mixedSeed = (seed + artIteration * 104_729 + Math.imul(index + 1, 2_654_435_761)) >>> 0;
-        const variantSeed = deriveIterationSeed(mixedSeed || seed + index + 1);
-        const rotatedPalette = palette.map((_, si) => palette[(si + index) % palette.length]?.hex ?? palette[0]?.hex ?? "#2F3542");
-        renderSketchPreview(ctx, w, h, rotatedPalette, variantSeed, { minWidth: 0, minHeight: 0, plainCantext: true });
-      });
-    };
-    const schedule = () => {
-      if (rafId !== null) window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(() => { rafId = null; draw(); });
-    };
-    schedule();
-    window.addEventListener("resize", schedule);
-    return () => { window.removeEventListener("resize", schedule); if (rafId !== null) window.cancelAnimationFrame(rafId); };
-  }, [artAspect, artIteration, palette, seed, showcaseScene]);
 
   // Actions
   const generateNextPalette = () => {
@@ -560,32 +454,6 @@ export default function PaletteExplorer() {
             onSave={saveCustomTheme}
             onApplyTheme={setTheme}
             onRemoveTheme={removeCustomTheme}
-          />
-
-          {/* Studio showcase */}
-          <StudioPreview
-            palette={palette}
-            toneNames={toneNames}
-            themeName={themeName}
-            seed={seed}
-            studioPreview={studioPreview}
-            showcaseScene={showcaseScene}
-            artAspect={artAspect}
-            artIteration={artIteration}
-            miniArtworkAspectRatio={miniArtworkAspectRatio}
-            miniArtworkCanvasRefs={miniArtworkCanvasRefs}
-            onSceneChange={setShowcaseScene}
-            onArtAspectChange={setArtAspect}
-            onRefreshArt={() => setArtIteration((prev) => prev + 1)}
-            onMoveColor={movePaletteColor}
-          />
-
-          {/* Analytics */}
-          <AnalyticsPanel
-            palette={palette}
-            contrastMatrix={contrastMatrix}
-            analyticsSummary={analyticsSummary}
-            analyticsNarrative={analyticsNarrative}
           />
         </main>
 
