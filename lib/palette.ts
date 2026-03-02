@@ -30,7 +30,7 @@ const CURATED_PALETTES: PaletteTheme[] = [
   {
     id: "my-love",
     name: "My Love",
-    colors: ["#E8DCB4", "#FFFFFF", "#C4006B", "#038A86", "#012057"]
+    colors: ["#E8DCB4", "#E91E63", "#660303", "#038A86", "#012057"]
   },
   {
     id: "punch",
