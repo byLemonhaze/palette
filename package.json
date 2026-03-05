@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "test": "node --test tests/*.test.mjs",
+    "verify": "node node_modules/next/dist/bin/next build && node --test tests/*.test.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.34.3",
